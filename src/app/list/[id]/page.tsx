@@ -29,6 +29,8 @@ export default function ListPage() {
   const [suggestions, setSuggestions] = useState<string[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const [listNote, setListNote] = useState("");
+  const [listNoteLoading, setListNoteLoading] = useState(true);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -94,12 +96,34 @@ export default function ListPage() {
     };
   }, [id]);
 
+  // Fetch list note
+  useEffect(() => {
+    if (!id) return;
+    const fetchListNote = async () => {
+      setListNoteLoading(true);
+      const { data, error } = await supabase
+        .from("grocery_lists")
+        .select("note")
+        .eq("id", id)
+        .single();
+      if (!error && data) setListNote(data.note || "");
+      setListNoteLoading(false);
+    };
+    fetchListNote();
+  }, [id]);
+
+  // Update list note
+  const handleListNoteChange = async (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setListNote(e.target.value);
+    await supabase.from("grocery_lists").update({ note: e.target.value }).eq("id", id);
+  };
+
   // Add item
   const handleAddItem = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newItem.trim()) return;
     const session = (await supabase.auth.getSession()).data.session;
-    const userEmail = session?.user?.email || "Unknown";
+    const userId = session?.user?.id || null;
     // Optimistic UI: add a temp item (not sent to DB)
     setItems(prev => [
       ...prev,
@@ -107,7 +131,7 @@ export default function ListPage() {
         id: Math.random().toString(),
         text: newItem,
         completed: false,
-        created_by: userEmail,
+        created_by: userId,
         list_id: id,
         created_at: new Date().toISOString(),
         optimistic: true,
@@ -116,7 +140,7 @@ export default function ListPage() {
     setNewItem("");
     inputRef.current?.focus();
     // Send text, list_id, and created_by to DB
-    const { error } = await supabase.from("grocery_items").insert([{ text: newItem, list_id: id, created_by: userEmail }]);
+    const { error } = await supabase.from("grocery_items").insert([{ text: newItem, list_id: id, created_by: userId }]);
     if (error) toast.error(error.message);
   };
 
@@ -149,6 +173,21 @@ export default function ListPage() {
 
   return (
     <main className="min-h-screen bg-[#FFF0E6] pb-16">
+      {/* List Notes Section */}
+      <section className="max-w-2xl mx-auto mt-8 mb-4 px-4">
+        <div className="bg-white rounded-xl shadow p-4 mb-4">
+          <label className="block text-lg font-semibold mb-2 text-[#212529]">Shared Notes</label>
+          <textarea
+            className="w-full min-h-[64px] rounded-lg border border-[#E9ECEF] px-4 py-2 text-lg text-[#212529] placeholder-[#6C757D] focus:outline-none focus:ring-2 focus:ring-[#6B8068] transition resize-vertical"
+            placeholder="Add notes for your list (e.g., Don't forget coupons, or special instructions)"
+            value={listNote}
+            onChange={handleListNoteChange}
+            disabled={listNoteLoading}
+            style={{ fontFamily: 'Inter, sans-serif' }}
+          />
+        </div>
+      </section>
+
       {/* Hero Card */}
       <section className="max-w-2xl mx-auto mt-8 mb-8 p-8 rounded-2xl shadow-lg flex flex-col items-center relative overflow-hidden" style={{ background: COLORS.darkGreen }}>
         {/* Illustration placeholder */}
@@ -243,6 +282,8 @@ export default function ListPage() {
 function GroceryItem({ item, onToggle, onEdit, onDelete }: any) {
   const [editing, setEditing] = useState(false);
   const [editText, setEditText] = useState(item.text);
+  const [note, setNote] = useState(item.note || "");
+  const [noteLoading, setNoteLoading] = useState(false);
 
   const handleEditSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -250,43 +291,62 @@ function GroceryItem({ item, onToggle, onEdit, onDelete }: any) {
     if (editText !== item.text) onEdit(item, editText);
   };
 
+  // Update note in Supabase
+  const handleNoteChange = async (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setNote(e.target.value);
+    setNoteLoading(true);
+    await supabase.from("grocery_items").update({ note: e.target.value }).eq("id", item.id);
+    setNoteLoading(false);
+  };
+
   return (
-    <li className="flex items-center gap-3 bg-white rounded-xl shadow p-4 group transition hover:shadow-lg">
-      <label className="flex items-center cursor-pointer">
-        <input
-          type="checkbox"
-          checked={item.completed}
-          onChange={() => onToggle(item)}
-          className="w-5 h-5 accent-[#6B8068] rounded-full border-2 border-[#E9ECEF] mr-3 transition"
-        />
-      </label>
-      {editing ? (
-        <form onSubmit={handleEditSubmit} className="flex-1 flex gap-2">
+    <li className="flex flex-col gap-2 bg-white rounded-xl shadow p-4 group transition hover:shadow-lg">
+      <div className="flex items-center gap-3">
+        <label className="flex items-center cursor-pointer">
           <input
-            className="flex-1 px-3 py-2 border border-[#E9ECEF] rounded-lg text-lg text-[#212529] placeholder-[#6C757D] focus:outline-none focus:ring-2 focus:ring-[#6B8068]"
-            value={editText}
-            onChange={e => setEditText(e.target.value)}
-            autoFocus
-            style={{ fontFamily: 'Inter, sans-serif' }}
+            type="checkbox"
+            checked={item.completed}
+            onChange={() => onToggle(item)}
+            className="w-5 h-5 accent-[#6B8068] rounded-full border-2 border-[#E9ECEF] mr-3 transition"
           />
-          <button type="submit" className="text-[#6B8068] font-semibold px-3 py-2 rounded-lg hover:bg-[#F8F9FA] transition">Save</button>
-        </form>
-      ) : (
-        <span
-          className={`flex-1 text-lg ${item.completed ? "line-through text-[#6C757D]" : "text-[#212529]"} cursor-pointer`}
-          onDoubleClick={() => setEditing(true)}
-          style={{ fontFamily: 'Inter, sans-serif' }}
+        </label>
+        {editing ? (
+          <form onSubmit={handleEditSubmit} className="flex-1 flex gap-2">
+            <input
+              className="flex-1 px-3 py-2 border border-[#E9ECEF] rounded-lg text-lg text-[#212529] placeholder-[#6C757D] focus:outline-none focus:ring-2 focus:ring-[#6B8068]"
+              value={editText}
+              onChange={e => setEditText(e.target.value)}
+              autoFocus
+              style={{ fontFamily: 'Inter, sans-serif' }}
+            />
+            <button type="submit" className="text-[#6B8068] font-semibold px-3 py-2 rounded-lg hover:bg-[#F8F9FA] transition">Save</button>
+          </form>
+        ) : (
+          <span
+            className={`flex-1 text-lg ${item.completed ? "line-through text-[#6C757D]" : "text-[#212529]"} cursor-pointer`}
+            onDoubleClick={() => setEditing(true)}
+            style={{ fontFamily: 'Inter, sans-serif' }}
+          >
+            {item.text}
+          </span>
+        )}
+        <button
+          className="text-[#E85A2B] hover:bg-[#FFF0E6] rounded-full p-2 ml-2 transition opacity-0 group-hover:opacity-100"
+          onClick={() => onDelete(item)}
+          title="Delete"
         >
-          {item.text}
-        </span>
-      )}
-      <button
-        className="text-[#E85A2B] hover:bg-[#FFF0E6] rounded-full p-2 ml-2 transition opacity-0 group-hover:opacity-100"
-        onClick={() => onDelete(item)}
-        title="Delete"
-      >
-        <svg width="20" height="20" fill="none" viewBox="0 0 24 24"><path stroke="#E85A2B" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
-      </button>
+          <svg width="20" height="20" fill="none" viewBox="0 0 24 24"><path stroke="#E85A2B" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+      {/* Item Note */}
+      <textarea
+        className="w-full min-h-[32px] rounded-lg border border-[#E9ECEF] px-3 py-2 text-base text-[#212529] placeholder-[#6C757D] focus:outline-none focus:ring-2 focus:ring-[#6B8068] transition resize-vertical"
+        placeholder="Add a note (e.g., Get lactose-free)"
+        value={note}
+        onChange={handleNoteChange}
+        disabled={noteLoading}
+        style={{ fontFamily: 'Inter, sans-serif' }}
+      />
     </li>
   );
 } 
