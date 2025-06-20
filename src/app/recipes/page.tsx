@@ -4,18 +4,29 @@ import { useRouter } from "next/navigation";
 import { getRecipes, addRecipe, updateRecipe, deleteRecipe } from "../../lib/recipes";
 import { supabase } from "../../lib/supabaseClient";
 import toast from "react-hot-toast";
-import { Fragment } from "react";
+
+type Recipe = {
+  id: string;
+  title: string;
+  ingredients: string;
+  instructions: string;
+  user_id: string;
+};
+type List = {
+  id: string;
+  name: string;
+};
 
 export default function RecipesPage() {
-  const [recipes, setRecipes] = useState<any[]>([]);
+  const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ title: "", ingredients: "", instructions: "" });
   const [editingId, setEditingId] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
   const [showListModal, setShowListModal] = useState(false);
-  const [selectedRecipe, setSelectedRecipe] = useState<any | null>(null);
-  const [lists, setLists] = useState<any[]>([]);
+  const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
+  const [lists, setLists] = useState<List[]>([]);
   const [selectedListId, setSelectedListId] = useState<string>("");
   const [newListName, setNewListName] = useState("");
   const [addingToList, setAddingToList] = useState(false);
@@ -48,8 +59,8 @@ export default function RecipesPage() {
     try {
       const data = await getRecipes(uid);
       setRecipes(data || []);
-    } catch (e: any) {
-      toast.error(e.message);
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : String(e));
     }
     setLoading(false);
   };
@@ -76,12 +87,12 @@ export default function RecipesPage() {
       setShowForm(false);
       setEditingId(null);
       fetchRecipes(userId!);
-    } catch (e: any) {
-      toast.error(e.message);
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : String(e));
     }
   };
 
-  const handleEdit = (recipe: any) => {
+  const handleEdit = (recipe: Recipe) => {
     setForm({ title: recipe.title, ingredients: recipe.ingredients, instructions: recipe.instructions });
     setEditingId(recipe.id);
     setShowForm(true);
@@ -93,12 +104,12 @@ export default function RecipesPage() {
       await deleteRecipe(id);
       toast.success("Recipe deleted");
       fetchRecipes(userId!);
-    } catch (e: any) {
-      toast.error(e.message);
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : String(e));
     }
   };
 
-  const openListModal = (recipe: any) => {
+  const openListModal = (recipe: Recipe) => {
     setSelectedRecipe(recipe);
     setShowListModal(true);
     setSelectedListId("");
@@ -143,8 +154,8 @@ export default function RecipesPage() {
       setShowListModal(false);
       setSelectedRecipe(null);
       router.push(`/list/${listId}`);
-    } catch (e: any) {
-      toast.error(e.message);
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : String(e));
     }
     setAddingToList(false);
   };

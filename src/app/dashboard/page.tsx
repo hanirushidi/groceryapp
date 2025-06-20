@@ -19,8 +19,14 @@ const COLORS = {
   textSecondary: "#6C757D",
 };
 
+type GroceryList = {
+  id: string;
+  name: string;
+  created_at: string;
+};
+
 export default function DashboardPage() {
-  const [lists, setLists] = useState<any[]>([]);
+  const [lists, setLists] = useState<GroceryList[]>([]);
   const [loading, setLoading] = useState(true);
   const [newListName, setNewListName] = useState("");
   const router = useRouter();

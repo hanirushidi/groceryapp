@@ -20,13 +20,25 @@ const COLORS = {
   textSecondary: "#6C757D",
 };
 
+type GroceryItem = {
+  id: string;
+  text: string;
+  completed: boolean;
+  created_by: string;
+  list_id: string;
+  created_at: string;
+  optimistic?: boolean;
+  note?: string;
+};
+type Suggestion = string;
+
 export default function ListPage() {
   const { id } = useParams();
   const router = useRouter();
-  const [items, setItems] = useState<any[]>([]);
+  const [items, setItems] = useState<GroceryItem[]>([]);
   const [newItem, setNewItem] = useState("");
   const [loading, setLoading] = useState(true);
-  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const [listNote, setListNote] = useState("");
@@ -62,7 +74,7 @@ export default function ListPage() {
     const fetchPopularItems = async () => {
       const { data, error } = await supabase.rpc('popular_grocery_items');
       if (!error && data) {
-        setSuggestions((data as any[]).map((d: any) => d.text));
+        setSuggestions((data as { text: string }[]).map((d) => d.text));
       }
     };
     fetchPopularItems();
@@ -77,16 +89,16 @@ export default function ListPage() {
         'postgres_changes',
         { event: '*', schema: 'public', table: 'grocery_items', filter: `list_id=eq.${id}` },
         payload => {
-          const user = (payload.new && (payload.new as any).created_by) || (payload.old && (payload.old as any).created_by) || "Someone";
+          const user = (payload.new && (payload.new as GroceryItem).created_by) || (payload.old && (payload.old as GroceryItem).created_by) || "Someone";
           if (payload.eventType === 'INSERT') {
-            setItems(prev => [...prev, payload.new]);
-            toast.success(`${user} added ${payload.new.text}`);
+            setItems(prev => [...prev, payload.new as GroceryItem]);
+            toast.success(`${user} added ${(payload.new as GroceryItem).text}`);
           } else if (payload.eventType === 'UPDATE') {
-            setItems(prev => prev.map(item => item.id === payload.new.id ? payload.new : item));
-            toast.success(`${user} edited ${payload.new.text}`);
+            setItems(prev => prev.map(item => item.id === (payload.new as GroceryItem).id ? payload.new as GroceryItem : item));
+            toast.success(`${user} edited ${(payload.new as GroceryItem).text}`);
           } else if (payload.eventType === 'DELETE') {
-            setItems(prev => prev.filter(item => item.id !== payload.old.id));
-            toast(`${user} deleted ${payload.old.text}`, { icon: '🗑️' });
+            setItems(prev => prev.filter(item => item.id !== (payload.old as GroceryItem).id));
+            toast(`${user} deleted ${(payload.old as GroceryItem).text}`, { icon: '🗑️' });
           }
         }
       )
@@ -131,11 +143,11 @@ export default function ListPage() {
         id: Math.random().toString(),
         text: newItem,
         completed: false,
-        created_by: userId,
-        list_id: id,
+        created_by: userId as string || "",
+        list_id: id as string,
         created_at: new Date().toISOString(),
         optimistic: true,
-      },
+      } as GroceryItem,
     ]);
     setNewItem("");
     inputRef.current?.focus();
@@ -145,21 +157,21 @@ export default function ListPage() {
   };
 
   // Toggle complete
-  const handleToggle = async (item: any) => {
+  const handleToggle = async (item: GroceryItem) => {
     setItems(prev => prev.map(i => i.id === item.id ? { ...i, completed: !i.completed } : i));
     const { error } = await supabase.from("grocery_items").update({ completed: !item.completed }).eq("id", item.id);
     if (error) toast.error(error.message);
   };
 
   // Edit item
-  const handleEdit = async (item: any, newText: string) => {
+  const handleEdit = async (item: GroceryItem, newText: string) => {
     setItems(prev => prev.map(i => i.id === item.id ? { ...i, text: newText } : i));
     const { error } = await supabase.from("grocery_items").update({ text: newText }).eq("id", item.id);
     if (error) toast.error(error.message);
   };
 
   // Delete item
-  const handleDelete = async (item: any) => {
+  const handleDelete = async (item: GroceryItem) => {
     setItems(prev => prev.filter(i => i.id !== item.id));
     const { error } = await supabase.from("grocery_items").delete().eq("id", item.id);
     if (error) toast.error(error.message);
@@ -264,7 +276,7 @@ export default function ListPage() {
         ) : (
           <ul className="space-y-4">
             {items.map(item => (
-              <GroceryItem
+              <GroceryItemComponent
                 key={item.id}
                 item={item}
                 onToggle={handleToggle}
@@ -279,7 +291,7 @@ export default function ListPage() {
   );
 }
 
-function GroceryItem({ item, onToggle, onEdit, onDelete }: any) {
+function GroceryItemComponent({ item, onToggle, onEdit, onDelete }: { item: GroceryItem; onToggle: (item: GroceryItem) => void; onEdit: (item: GroceryItem, newText: string) => void; onDelete: (item: GroceryItem) => void; }) {
   const [editing, setEditing] = useState(false);
   const [editText, setEditText] = useState(item.text);
   const [note, setNote] = useState(item.note || "");

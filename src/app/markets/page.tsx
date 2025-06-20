@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import Image from "next/image";
 
 const COLORS = {
   darkGreen: "#4A5D52",
@@ -10,8 +11,18 @@ const COLORS = {
   textSecondary: "#6C757D",
 };
 
+type Product = {
+  id?: string;
+  code?: string;
+  image_front_small_url?: string;
+  product_name?: string;
+  brands?: string;
+  stores_tags?: string[];
+  price?: number;
+};
+
 export default function MarketsPage() {
-  const [products, setProducts] = useState<any[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [query, setQuery] = useState("milk");
@@ -86,11 +97,13 @@ export default function MarketsPage() {
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
             {products.map(product => (
               <div key={product.id || product.code} className="bg-white rounded-xl shadow p-4 flex flex-col items-center">
-                <img
+                <Image
                   src={product.image_front_small_url || "/vercel.svg"}
                   alt={product.product_name || "Product"}
+                  width={96}
+                  height={96}
                   className="w-24 h-24 object-contain rounded mb-2 bg-[#F8F9FA]"
-                  onError={e => (e.currentTarget.src = "/vercel.svg")}
+                  onError={(e) => ((e.currentTarget as HTMLImageElement).src = "/vercel.svg")}
                 />
                 <div className="font-semibold text-lg text-[#212529] text-center mb-1 truncate w-full" title={product.product_name}>{product.product_name || "Unnamed Product"}</div>
                 <div className="text-[#6C757D] text-sm mb-1 text-center w-full truncate">{product.brands || "Unknown Brand"}</div>

@@ -3,14 +3,6 @@ import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { supabase } from "../lib/supabaseClient";
 
-const COLORS = {
-  darkGreen: "#4A5D52",
-  mediumGreen: "#6B8068",
-  warmOrange: "#FF8C42",
-  peachBackground: "#FFF0E6",
-  textPrimary: "#212529",
-};
-
 export default function Navbar() {
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const router = useRouter();
