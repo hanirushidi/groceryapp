@@ -3,6 +3,7 @@ import { useEffect, useState, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { supabase } from "../../../lib/supabaseClient";
 import toast from "react-hot-toast";
+import { User } from "@supabase/supabase-js";
 
 // Color palette from Design.json
 const COLORS = {
@@ -43,6 +44,7 @@ export default function ListPage() {
   const inputRef = useRef<HTMLInputElement>(null);
   const [listNote, setListNote] = useState("");
   const [listNoteLoading, setListNoteLoading] = useState(true);
+  const [userEmails, setUserEmails] = useState<Record<string, string>>({});
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -65,6 +67,22 @@ export default function ListPage() {
       if (error) toast.error(error.message);
       setItems(data || []);
       setLoading(false);
+      // Fetch user emails for attribution
+      if (data) {
+        const uniqueUserIds = Array.from(new Set(data.map((item: GroceryItem) => item.created_by)));
+        if (uniqueUserIds.length > 0) {
+          const { data: users, error: userError } = await supabase.auth.admin.listUsers();
+          if (!userError && users && users.users) {
+            const emailMap: Record<string, string> = {};
+            users.users.forEach((user: User) => {
+              if (uniqueUserIds.includes(user.id)) {
+                emailMap[user.id] = user.email || user.id;
+              }
+            });
+            setUserEmails(emailMap);
+          }
+        }
+      }
     };
     fetchItems();
   }, [id]);
@@ -279,6 +297,7 @@ export default function ListPage() {
               <GroceryItemComponent
                 key={item.id}
                 item={item}
+                userEmail={userEmails[item.created_by]}
                 onToggle={handleToggle}
                 onEdit={handleEdit}
                 onDelete={handleDelete}
@@ -291,7 +310,7 @@ export default function ListPage() {
   );
 }
 
-function GroceryItemComponent({ item, onToggle, onEdit, onDelete }: { item: GroceryItem; onToggle: (item: GroceryItem) => void; onEdit: (item: GroceryItem, newText: string) => void; onDelete: (item: GroceryItem) => void; }) {
+function GroceryItemComponent({ item, userEmail, onToggle, onEdit, onDelete }: { item: GroceryItem; userEmail?: string; onToggle: (item: GroceryItem) => void; onEdit: (item: GroceryItem, newText: string) => void; onDelete: (item: GroceryItem) => void; }) {
   const [editing, setEditing] = useState(false);
   const [editText, setEditText] = useState(item.text);
   const [note, setNote] = useState(item.note || "");
@@ -350,6 +369,9 @@ function GroceryItemComponent({ item, onToggle, onEdit, onDelete }: { item: Groc
           <svg width="20" height="20" fill="none" viewBox="0 0 24 24"><path stroke="#E85A2B" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
         </button>
       </div>
+      {userEmail && (
+        <div className="text-xs text-[#6C757D] ml-8">{userEmail} added this item</div>
+      )}
       {/* Item Note */}
       <textarea
         className="w-full min-h-[32px] rounded-lg border border-[#E9ECEF] px-3 py-2 text-base text-[#212529] placeholder-[#6C757D] focus:outline-none focus:ring-2 focus:ring-[#6B8068] transition resize-vertical"
