@@ -68,6 +68,17 @@ export default function DashboardPage() {
     }
   };
 
+  const handleDeleteList = async (id: string) => {
+    if (!confirm("Delete this list? This cannot be undone.")) return;
+    const { error } = await supabase.from("grocery_lists").delete().eq("id", id);
+    if (error) {
+      toast.error(error.message);
+    } else {
+      setLists(prev => prev.filter(list => list.id !== id));
+      toast.success("List deleted!");
+    }
+  };
+
   return (
     <main className="min-h-screen bg-[#FFF0E6] pb-16">
       {/* Hero Card */}
@@ -111,12 +122,21 @@ export default function DashboardPage() {
             {lists.map(list => (
               <li key={list.id} className="flex items-center justify-between p-4 bg-white rounded-xl shadow group transition hover:shadow-lg">
                 <span className="font-medium text-lg text-[#212529]">{list.name}</span>
-                <button
-                  className="bg-[#FF8C42] text-white px-5 py-2 rounded-full font-semibold shadow hover:bg-[#FFB366] transition text-sm"
-                  onClick={() => router.push(`/list/${list.id}`)}
-                >
-                  Open
-                </button>
+                <div className="flex gap-2">
+                  <button
+                    className="bg-[#FF8C42] text-white px-5 py-2 rounded-full font-semibold shadow hover:bg-[#FFB366] transition text-sm"
+                    onClick={() => router.push(`/list/${list.id}`)}
+                  >
+                    Open
+                  </button>
+                  <button
+                    className="bg-red-100 text-red-600 px-3 py-2 rounded-full font-semibold shadow hover:bg-red-200 transition text-sm flex items-center"
+                    title="Delete list"
+                    onClick={() => handleDeleteList(list.id)}
+                  >
+                    <svg width="18" height="18" fill="none" viewBox="0 0 24 24"><path stroke="#E85A2B" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+                  </button>
+                </div>
               </li>
             ))}
           </ul>
