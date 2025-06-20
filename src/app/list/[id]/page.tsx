@@ -1,9 +1,8 @@
 "use client";
 import { useEffect, useState, useRef } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import { supabase } from "../../../lib/supabaseClient";
 import toast from "react-hot-toast";
-import { User } from "@supabase/supabase-js";
 
 // Color palette from Design.json
 const COLORS = {
@@ -35,7 +34,6 @@ type Suggestion = string;
 
 export default function ListPage() {
   const { id } = useParams();
-  const router = useRouter();
   const [items, setItems] = useState<GroceryItem[]>([]);
   const [newItem, setNewItem] = useState("");
   const [loading, setLoading] = useState(true);
@@ -45,14 +43,6 @@ export default function ListPage() {
   const [listNote, setListNote] = useState("");
   const [listNoteLoading, setListNoteLoading] = useState(true);
   const [userEmails, setUserEmails] = useState<Record<string, string>>({});
-
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!session) {
-        router.push("/auth");
-      }
-    });
-  }, [router]);
 
   // Fetch items
   useEffect(() => {
@@ -71,15 +61,16 @@ export default function ListPage() {
       if (data) {
         const uniqueUserIds = Array.from(new Set(data.map((item: GroceryItem) => item.created_by)));
         if (uniqueUserIds.length > 0) {
-          const { data: users, error: userError } = await supabase.auth.admin.listUsers();
-          if (!userError && users && users.users) {
-            const emailMap: Record<string, string> = {};
-            users.users.forEach((user: User) => {
-              if (uniqueUserIds.includes(user.id)) {
-                emailMap[user.id] = user.email || user.id;
-              }
+          try {
+            const res = await fetch("/api/user-emails", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ userIds: uniqueUserIds }),
             });
-            setUserEmails(emailMap);
+            const json = await res.json();
+            if (json.emails) setUserEmails(json.emails);
+          } catch {
+            // fallback: do nothing
           }
         }
       }

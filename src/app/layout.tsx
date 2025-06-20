@@ -31,7 +31,7 @@ export default function RootLayout({
       >
         <Navbar />
         <ToastProvider>
-          {children}
+        {children}
         </ToastProvider>
       </body>
     </html>
